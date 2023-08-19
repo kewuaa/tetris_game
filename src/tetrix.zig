@@ -364,7 +364,6 @@ pub fn init(
                                         current_block.move(.UP);
                                         draw_block(current_block);
                                         if (overflow(current_block)) {
-                                            std.debug.print("aaaa", .{});
                                             break:game_loop;
                                         }
                                         self.toggle_current(&current_block, &block1, &block2);
