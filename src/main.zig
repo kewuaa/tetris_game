@@ -11,7 +11,7 @@ pub fn main() !void {
     var game = tetris.init("Tetris", WIDTH, HEIGHT){.rand_impl = &rand_impl};
     while (true) {
         game.start() catch break;
-        _ = std.c.printf("if once again(\"n\" to quit):");
+        _ = std.c.printf("是否重新开始(输入\"n\"退出):");
         if (c.getchar() == 'n') {
             break;
         }

@@ -44,7 +44,7 @@ pub fn init(
                     ++ middle ++ " ↓ -> 加速\n"
                     ++ middle ++ " ← -> 左移\n"
                     ++ middle ++ " → -> 右移\n"
-                    ++ middle ++ " ESC -> 推出\n"
+                    ++ middle ++ " ESC -> 退出\n"
                     ++ middle ++ " 空格 -> 暂停\n"
                     ++ (middle ++ "\n") ** (height - 16)
                     ++ "┗" ++ line ++ "┛\n";
