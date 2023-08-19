@@ -200,6 +200,32 @@ pub fn init(
             }
         }
 
+        fn preview_block(b: *const Block) void {
+            const S = struct {
+                const coord: console.Coordinate = .{width + 12, 2};
+                var last_block: ?*const Block = null;
+            };
+            var coord: console.Coordinate = undefined;
+            if (S.last_block) |bb| {
+                cs.cursor_jump(&S.coord);
+                cs.clear_one();
+                for (bb.shape.get()) |c| {
+                    coord = S.coord + c;
+                    cs.cursor_jump(&coord);
+                    cs.clear_one();
+                }
+            }
+            cs.set_color(b.shape.color);
+            cs.cursor_jump(&S.coord);
+            cs.draw_one();
+            for (b.shape.get()) |c| {
+                coord = S.coord + c;
+                cs.cursor_jump(&coord);
+                cs.draw_one();
+            }
+            S.last_block = b;
+        }
+
         fn should_stop_block(b: *const Block) bool {
             if (!(b.coordinate[1] < 0)) {
                 if (get(&b.coordinate)) |_| {
@@ -259,47 +285,31 @@ pub fn init(
             };
         }
 
-        fn preview(b: *const Block) void {
+        fn switch_current_block(
+            self: *const @This(),
+        ) *Block {
             const S = struct {
-                const coord: console.Coordinate = .{width + 12, 2};
-                var last_block: ?*const Block = null;
+                var block1: Block = undefined;
+                var block2: Block = undefined;
+                var current_block: ?*Block = null;
             };
-            var coord: console.Coordinate = undefined;
-            if (S.last_block) |bb| {
-                cs.cursor_jump(&S.coord);
-                cs.clear_one();
-                for (bb.shape.get()) |c| {
-                    coord = S.coord + c;
-                    cs.cursor_jump(&coord);
-                    cs.clear_one();
+            if (S.current_block == null) {
+                S.block1 = Block.init(width / 2, self.rand_impl);
+                S.block2 = Block.init(width / 2, self.rand_impl);
+                S.current_block = &S.block1;
+                preview_block(&S.block2);
+            } else {
+                if (S.current_block == &S.block1) {
+                    S.current_block = &S.block2;
+                    S.block1 = Block.init(width / 2, self.rand_impl);
+                    preview_block(&S.block1);
+                } else {
+                    S.current_block = &S.block1;
+                    S.block2 = Block.init(width / 2, self.rand_impl);
+                    preview_block(&S.block2);
                 }
             }
-            cs.set_color(b.shape.color);
-            cs.cursor_jump(&S.coord);
-            cs.draw_one();
-            for (b.shape.get()) |c| {
-                coord = S.coord + c;
-                cs.cursor_jump(&coord);
-                cs.draw_one();
-            }
-            S.last_block = b;
-        }
-
-        fn toggle_current(
-            self: *const @This(),
-            current: **Block,
-            block1: *Block,
-            block2: *Block
-        ) void {
-            if (current.* == block1) {
-                current.* = block2;
-                block1.* = Block.init(width / 2, self.rand_impl);
-                preview(block1);
-            } else {
-                current.* = block1;
-                block2.* = Block.init(width / 2, self.rand_impl);
-                preview(block2);
-            }
+            return S.current_block.?;
         }
 
         pub fn start(self: *@This()) !void {
@@ -310,10 +320,7 @@ pub fn init(
                 data = [1]console.Point{null} ** (width * height);
             }
 
-            var block1 = Block.init(width / 2, self.rand_impl);
-            var block2 = Block.init(width / 2, self.rand_impl);
-            var current_block: *Block = undefined;
-            self.toggle_current(&current_block, &block1, &block2);
+            var current_block: *Block = self.switch_current_block();
             draw_block(current_block);
             var i: i64 = undefined;
             return game_loop: while (true) {
@@ -356,7 +363,7 @@ pub fn init(
                             },
                             DOWN => {
                                 if (arrive_bottom(current_block)) {
-                                    self.toggle_current(&current_block, &block1, &block2);
+                                    current_block = self.switch_current_block();
                                 } else {
                                     clear_block(current_block);
                                     current_block.move(.DOWN);
@@ -366,7 +373,7 @@ pub fn init(
                                         if (overflow(current_block)) {
                                             break:game_loop;
                                         }
-                                        self.toggle_current(&current_block, &block1, &block2);
+                                        current_block = self.switch_current_block();
                                     }
                                 }
                                 draw_block(current_block);
@@ -377,7 +384,7 @@ pub fn init(
                 }
 
                 if (arrive_bottom(current_block)) {
-                    self.toggle_current(&current_block, &block1, &block2);
+                    current_block = self.switch_current_block();
                 } else {
                     clear_block(current_block);
                     current_block.move(.DOWN);
@@ -387,7 +394,7 @@ pub fn init(
                         if (overflow(current_block)) {
                             break:game_loop;
                         }
-                        self.toggle_current(&current_block, &block1, &block2);
+                        current_block = self.switch_current_block();
                     }
                 }
                 draw_block(current_block);
