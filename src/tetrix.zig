@@ -261,7 +261,7 @@ pub fn init(
 
         fn preview(b: *const Block) void {
             const S = struct {
-                const coord: console.Coordinate = .{width + 9, 3};
+                const coord: console.Coordinate = .{width + 12, 2};
                 var last_block: ?*const Block = null;
             };
             var coord: console.Coordinate = undefined;
