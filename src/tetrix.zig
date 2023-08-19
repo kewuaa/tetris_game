@@ -149,27 +149,28 @@ pub fn init(
         const GameError = error {
             UserExit,
         };
+        var data = [1]console.Point{null} ** (width * height);
 
-        data: [width * height]console.Point = [1]console.Point{null} ** (width * height),
+        // data: [width * height]console.Point = [1]console.Point{null} ** (width * height),
         rand_impl: *std.rand.Xoshiro256,
         init_interval: i64 = 15000,
 
-        fn get(self: *const @This(), coord: *const console.Coordinate) console.Point {
+        fn get(coord: *const console.Coordinate) console.Point {
             const x: u16 = @intCast(coord[0]);
             const y: u16 = @intCast(coord[1]);
-            return self.data[x + y * width];
+            return data[x + y * width];
         }
 
-        fn set(self: *@This(), coord: *const console.Coordinate, p: console.Point) void {
+        fn set(coord: *const console.Coordinate, p: console.Point) void {
             const x: u16 = @intCast(coord[0]);
             const y: u16 = @intCast(coord[1]);
-            self.data[x + y * width] = p;
+            data[x + y * width] = p;
         }
 
-        fn draw_block(self: *@This(), b: *const Block) void {
+        fn draw_block(b: *const Block) void {
             cs.set_color(b.shape.color);
             if (!(b.coordinate[1] < 0)) {
-                self.set(&b.coordinate, b.shape.color);
+                set(&b.coordinate, b.shape.color);
                 cs.cursor_jump(&b.coordinate);
                 cs.draw_one();
             }
@@ -177,15 +178,15 @@ pub fn init(
             for (b.shape.get()) |c| {
                 coord = b.coordinate + c;
                 if (coord[1] < 0) continue;
-                self.set(&coord, b.shape.color);
+                set(&coord, b.shape.color);
                 cs.cursor_jump(&coord);
                 cs.draw_one();
             }
         }
 
-        fn clear_block(self: *@This(), b: *const Block) void {
+        fn clear_block(b: *const Block) void {
             if (!(b.coordinate[1] < 0)) {
-                self.set(&b.coordinate, null);
+                set(&b.coordinate, null);
                 cs.cursor_jump(&b.coordinate);
                 cs.clear_one();
             }
@@ -193,15 +194,15 @@ pub fn init(
             for (b.shape.get()) |c| {
                 coord = b.coordinate + c;
                 if (coord[1] < 0) continue;
-                self.set(&coord, null);
+                set(&coord, null);
                 cs.cursor_jump(&coord);
                 cs.clear_one();
             }
         }
 
-        fn should_stop_block(self: *const @This(), b: *const Block) bool {
+        fn should_stop_block(b: *const Block) bool {
             if (!(b.coordinate[1] < 0)) {
-                if (self.get(&b.coordinate)) |_| {
+                if (get(&b.coordinate)) |_| {
                     return true;
                 }
             }
@@ -209,7 +210,7 @@ pub fn init(
             for (b.shape.get()) |c| {
                 coord = b.coordinate + c;
                 if (coord[1] < 0) continue;
-                if (self.get(&coord)) |_| {
+                if (get(&coord)) |_| {
                     return true;
                 }
             }
@@ -301,21 +302,19 @@ pub fn init(
             }
         }
 
-        pub fn reinit(self: *@This()) void {
-            self.data = [1]console.Point{null} ** (width * height);
-            cs.clear();
-        }
-
         pub fn start(self: *@This()) !void {
             cs.draw_ui();
             cs.hide_cursor();
-            defer cs.cursor_jump(&console.Coordinate{0, height + 1});
+            defer {
+                cs.cursor_jump(&console.Coordinate{0, height + 1});
+                data = [1]console.Point{null} ** (width * height);
+            }
 
             var block1 = Block.init(width / 2, self.rand_impl);
             var block2 = Block.init(width / 2, self.rand_impl);
             var current_block: *Block = undefined;
             self.toggle_current(&current_block, &block1, &block2);
-            self.draw_block(current_block);
+            draw_block(current_block);
             var i: i64 = undefined;
             return game_loop: while (true) {
                 i = self.init_interval;
@@ -335,9 +334,9 @@ pub fn init(
                                         !touch_side(current_block, .LEFT) 
                                     and !touch_side(current_block, .RIGHT)
                                 ) {
-                                    self.clear_block(current_block);
+                                    clear_block(current_block);
                                     current_block.shape.rotate();
-                                    self.draw_block(current_block);
+                                    draw_block(current_block);
                                 }
                             },
                             LEFT, RIGHT => |k| {
@@ -347,23 +346,23 @@ pub fn init(
                                     else => unreachable,
                                 };
                                 if (!touch_side(current_block, direction[0])) {
-                                    self.clear_block(current_block);
+                                    clear_block(current_block);
                                     current_block.move(direction[0]);
-                                    if (self.should_stop_block(current_block)) {
+                                    if (should_stop_block(current_block)) {
                                         current_block.move(direction[1]);
                                     }
-                                    self.draw_block(current_block);
+                                    draw_block(current_block);
                                 }
                             },
                             DOWN => {
                                 if (arrive_bottom(current_block)) {
                                     self.toggle_current(&current_block, &block1, &block2);
                                 } else {
-                                    self.clear_block(current_block);
+                                    clear_block(current_block);
                                     current_block.move(.DOWN);
-                                    if (self.should_stop_block(current_block)) {
+                                    if (should_stop_block(current_block)) {
                                         current_block.move(.UP);
-                                        self.draw_block(current_block);
+                                        draw_block(current_block);
                                         if (overflow(current_block)) {
                                             std.debug.print("aaaa", .{});
                                             break:game_loop;
@@ -371,7 +370,7 @@ pub fn init(
                                         self.toggle_current(&current_block, &block1, &block2);
                                     }
                                 }
-                                self.draw_block(current_block);
+                                draw_block(current_block);
                             },
                             else => {},
                         }
@@ -381,18 +380,18 @@ pub fn init(
                 if (arrive_bottom(current_block)) {
                     self.toggle_current(&current_block, &block1, &block2);
                 } else {
-                    self.clear_block(current_block);
+                    clear_block(current_block);
                     current_block.move(.DOWN);
-                    if (self.should_stop_block(current_block)) {
+                    if (should_stop_block(current_block)) {
                         current_block.move(.UP);
-                        self.draw_block(current_block);
+                        draw_block(current_block);
                         if (overflow(current_block)) {
                             break:game_loop;
                         }
                         self.toggle_current(&current_block, &block1, &block2);
                     }
                 }
-                self.draw_block(current_block);
+                draw_block(current_block);
             };
         }
     };

@@ -14,6 +14,6 @@ pub fn main() !void {
         _ = std.c.printf("if once again(\"n\" to quit):");
         if (c.getchar() == 'n') {
             break;
-        } else game.reinit();
+        }
     }
 }
