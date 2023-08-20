@@ -147,6 +147,7 @@ pub fn init(
     const cs = console.init(title, width, height);
     return struct {
         const GameError = error {
+            StopError,
             OverflowError,
             UserExit,
         };
@@ -289,19 +290,81 @@ pub fn init(
         fn try_move_down(self: *@This(), b: **Block) GameError!void {
             if (arrive_bottom(b.*)) {
                 b.* = self.switch_current_block();
-            } else {
-                clear_block(b.*);
-                b.*.move(.DOWN);
-                if (should_stop_block(b.*)) {
-                    b.*.move(.UP);
-                    draw_block(b.*);
-                    if (overflow(b.*)) {
-                        return GameError.OverflowError;
+        fn show_score(score: u32) void {
+            const S = struct {
+                const coord: console.Coordinate = .{width + 6, height - 3};
+            };
+            cs.cursor_jump(&S.coord);
+            _ = std.c.printf("   ");
+            _ = std.c.printf("%d", score);
+        }
+
+        fn try_eliminate() u32 {
+            var need_eliminate: bool = undefined;
+            var empty: bool = undefined;
+            var row: u32 = height - 1;
+            var redraw_row = row;
+            defer while (redraw_row != row): (redraw_row -= 1) {
+                const y: i16 = @intCast(redraw_row);
+                var x: i16 = undefined;
+                for (0..width) |col| {
+                    x = @intCast(col);
+                    cs.cursor_jump(&console.Coordinate{x, y});
+                    cs.clear_one();
+                    data[redraw_row * width + col] = null;
+                }
+            };
+            while (row > 0): (row -= 1) {
+                need_eliminate = true;
+                empty = true;
+                for (0..width) |col| {
+                    if (data[row * width + col] == null) {
+                        need_eliminate = false;
+                    } else {
+                        empty = false;
                     }
-                    b.* = self.switch_current_block();
+                }
+                if (empty) break;
+                if (!need_eliminate) {
+                    if (row != redraw_row) {
+                        const y: i16 = @intCast(redraw_row);
+                        var x: i16 = undefined;
+                        var point: console.Point = undefined;
+                        for (0..width) |col| {
+                            x = @intCast(col);
+                            point = data[row * width + col];
+                            cs.cursor_jump(&console.Coordinate{x, y});
+                            if (point) |p| {
+                                cs.set_color(p);
+                                cs.draw_one();
+                            } else {
+                                cs.clear_one();
+                            }
+                            data[redraw_row * width + col] = point;
+                        }
+                    }
+                    redraw_row -= 1;
                 }
             }
-            draw_block(b.*);
+            return redraw_row - row;
+        }
+
+        fn try_move_down(b: *Block) GameError!void {
+            if (arrive_bottom(b)) {
+                return GameError.StopError;
+            } else {
+                clear_block(b);
+                b.move(.DOWN);
+                if (should_stop_block(b)) {
+                    b.move(.UP);
+                    draw_block(b);
+                    if (overflow(b)) {
+                        return GameError.OverflowError;
+                    }
+                    return GameError.StopError;
+                }
+            }
+            draw_block(b);
         }
 
         fn switch_current_block(
@@ -341,9 +404,11 @@ pub fn init(
 
             var current_block: *Block = self.switch_current_block();
             draw_block(current_block);
+            var score: u32 = 0;
+            show_score(score);
             var i: i64 = undefined;
             return game_loop: while (true) {
-                i = self.init_interval;
+                i = self.init_interval - score;
                 while (i > 0): (i -= 1) {
                     if (conio.kbhit() != 0) {
                         switch (conio.getch()) {
@@ -381,14 +446,30 @@ pub fn init(
                                 }
                             },
                             DOWN => {
-                                self.try_move_down(&current_block) catch break:game_loop;
+                                try_move_down(current_block) catch |err| switch (err) {
+                                    GameError.StopError => {
+                                        current_block = self.switch_current_block();
+                                        score += 10 * try_eliminate();
+                                        show_score(score);
+                                    },
+                                    GameError.OverflowError => break:game_loop,
+                                    else => unreachable,
+                                };
                             },
                             else => {},
                         }
                     }
                 }
 
-                self.try_move_down(&current_block) catch break:game_loop;
+                try_move_down(current_block) catch |err| switch (err) {
+                    GameError.StopError => {
+                        current_block = self.switch_current_block();
+                        score += try_eliminate();
+                        show_score(score);
+                    },
+                    GameError.OverflowError => break:game_loop,
+                    else => unreachable,
+                };
             };
         }
     };

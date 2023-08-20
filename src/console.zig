@@ -46,7 +46,9 @@ pub fn init(
                     ++ middle ++ " → -> 右移\n"
                     ++ middle ++ " ESC -> 退出\n"
                     ++ middle ++ " 空格 -> 暂停\n"
-                    ++ (middle ++ "\n") ** (height - 16)
+                    ++ (middle ++ "\n") ** (height - 20)
+                    ++ middle ++ " score:\n"
+                    ++ (middle ++ "\n") ** 3
                     ++ "┗" ++ line ++ "┛\n";
                 break:blk ui;
             };
