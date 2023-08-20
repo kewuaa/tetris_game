@@ -147,6 +147,7 @@ pub fn init(
     const cs = console.init(title, width, height);
     return struct {
         const GameError = error {
+            OverflowError,
             UserExit,
         };
         var data = [1]console.Point{null} ** (width * height);
@@ -285,6 +286,24 @@ pub fn init(
             };
         }
 
+        fn try_move_down(self: *@This(), b: **Block) GameError!void {
+            if (arrive_bottom(b.*)) {
+                b.* = self.switch_current_block();
+            } else {
+                clear_block(b.*);
+                b.*.move(.DOWN);
+                if (should_stop_block(b.*)) {
+                    b.*.move(.UP);
+                    draw_block(b.*);
+                    if (overflow(b.*)) {
+                        return GameError.OverflowError;
+                    }
+                    b.* = self.switch_current_block();
+                }
+            }
+            draw_block(b.*);
+        }
+
         fn switch_current_block(
             self: *const @This(),
         ) *Block {
@@ -312,7 +331,7 @@ pub fn init(
             return S.current_block.?;
         }
 
-        pub fn start(self: *@This()) !void {
+        pub fn start(self: *@This()) GameError!void {
             cs.draw_ui();
             cs.hide_cursor();
             defer {
@@ -362,42 +381,14 @@ pub fn init(
                                 }
                             },
                             DOWN => {
-                                if (arrive_bottom(current_block)) {
-                                    current_block = self.switch_current_block();
-                                } else {
-                                    clear_block(current_block);
-                                    current_block.move(.DOWN);
-                                    if (should_stop_block(current_block)) {
-                                        current_block.move(.UP);
-                                        draw_block(current_block);
-                                        if (overflow(current_block)) {
-                                            break:game_loop;
-                                        }
-                                        current_block = self.switch_current_block();
-                                    }
-                                }
-                                draw_block(current_block);
+                                self.try_move_down(&current_block) catch break:game_loop;
                             },
                             else => {},
                         }
                     }
                 }
 
-                if (arrive_bottom(current_block)) {
-                    current_block = self.switch_current_block();
-                } else {
-                    clear_block(current_block);
-                    current_block.move(.DOWN);
-                    if (should_stop_block(current_block)) {
-                        current_block.move(.UP);
-                        draw_block(current_block);
-                        if (overflow(current_block)) {
-                            break:game_loop;
-                        }
-                        current_block = self.switch_current_block();
-                    }
-                }
-                draw_block(current_block);
+                self.try_move_down(&current_block) catch break:game_loop;
             };
         }
     };
