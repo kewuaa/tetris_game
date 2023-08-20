@@ -84,11 +84,19 @@ const Shape = struct {
         return &available_shapes[self.i][self.j];
     }
 
-    pub fn rotate(self: *Shape) void {
-        if (self.j < available_shapes[self.i].len - 1) {
-            self.j += 1;
+    pub fn rotate(self: *Shape, option: struct {reverse: bool = false}) void {
+        if (option.reverse) {
+            if (self.j > 0) {
+                self.j -= 1;
+            } else {
+                self.j = @intCast(available_shapes[self.i].len - 1);
+            }
         } else {
-            self.j = 0;
+            if (self.j < available_shapes[self.i].len - 1) {
+                self.j += 1;
+            } else {
+                self.j = 0;
+            }
         }
     }
 };
@@ -287,9 +295,20 @@ pub fn init(
             };
         }
 
-        fn try_move_down(self: *@This(), b: **Block) GameError!void {
-            if (arrive_bottom(b.*)) {
-                b.* = self.switch_current_block();
+        fn out_of_range(b: *const Block) bool {
+            var max_y: i16 = 0;
+            var min_x: i16 = 0;
+            var max_x: i16 = 0;
+            for (b.shape.get()) |coord| {
+                max_y = @max(coord[1], max_y);
+                min_x = @min(coord[0], min_x);
+                max_x = @max(coord[0], max_x);
+            }
+            return (min_x + b.coordinate[0] < 0
+                or max_x + b.coordinate[0] > width - 1
+                or max_y + b.coordinate[1] > height - 1);
+        }
+
         fn show_score(score: u32) void {
             const S = struct {
                 const coord: console.Coordinate = .{width + 6, height - 3};
@@ -421,14 +440,12 @@ pub fn init(
                                 }
                             ) std.time.sleep(1e8),
                             UP => {
-                                if (
-                                        !touch_side(current_block, .LEFT) 
-                                    and !touch_side(current_block, .RIGHT)
-                                ) {
-                                    clear_block(current_block);
-                                    current_block.shape.rotate();
-                                    draw_block(current_block);
+                                clear_block(current_block);
+                                current_block.shape.rotate(.{});
+                                if (should_stop_block(current_block) or out_of_range(current_block)) {
+                                    current_block.shape.rotate(.{.reverse = true});
                                 }
+                                draw_block(current_block);
                             },
                             LEFT, RIGHT => |k| {
                                 const direction: [2]Direction = switch (k) {
