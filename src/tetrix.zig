@@ -481,7 +481,7 @@ pub fn init(
                 try_move_down(current_block) catch |err| switch (err) {
                     GameError.StopError => {
                         current_block = self.switch_current_block();
-                        score += try_eliminate();
+                        score += 10 * try_eliminate();
                         show_score(score);
                     },
                     GameError.OverflowError => break:game_loop,
