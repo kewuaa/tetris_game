@@ -466,7 +466,7 @@ pub fn init(
                                 try_move_down(current_block) catch |err| switch (err) {
                                     GameError.StopError => {
                                         current_block = self.switch_current_block();
-                                        score += 10 * try_eliminate();
+                                        score += 10 * std.math.pow(u32, try_eliminate(), 2);
                                         show_score(score);
                                     },
                                     GameError.OverflowError => break:game_loop,
@@ -481,7 +481,7 @@ pub fn init(
                 try_move_down(current_block) catch |err| switch (err) {
                     GameError.StopError => {
                         current_block = self.switch_current_block();
-                        score += 10 * try_eliminate();
+                        score += 10 * std.math.pow(u32, try_eliminate(), 2);
                         show_score(score);
                     },
                     GameError.OverflowError => break:game_loop,
