@@ -228,7 +228,7 @@ pub fn init(
 
         fn should_stop_block(b: *const Block) bool {
             if (!(b.coordinate[1] < 0)) {
-                if (get(&b.coordinate)) |_| {
+                if (get(&b.coordinate) != null) {
                     return true;
                 }
             }
@@ -236,7 +236,7 @@ pub fn init(
             for (b.shape.get()) |c| {
                 coord = b.coordinate + c;
                 if (coord[1] < 0) continue;
-                if (get(&coord)) |_| {
+                if (get(&coord) != null) {
                     return true;
                 }
             }
