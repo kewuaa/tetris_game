@@ -246,6 +246,7 @@ pub fn init(
             for (b.shape.get()) |c| {
                 coord = b.coordinate + c;
                 if (coord[1] < 0) continue;
+                if (coord[0] < 0 or coord[0] > width - 1) return true;
                 if (get(&coord) != null) {
                     return true;
                 }
