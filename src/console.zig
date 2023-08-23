@@ -1,10 +1,56 @@
 const std = @import("std");
-const windows = @cImport(@cInclude("windows.h"));
+const builtin = @import("builtin");
+const console = switch (builtin.target.os.tag) {
+    .windows => struct {
+        const windows = @cImport(@cInclude("windows.h"));
+
+        pub fn init(
+            comptime title: [*:0]const u8,
+            comptime width: comptime_int,
+            comptime height: comptime_int,
+        ) void {
+            // set console encoding to utf-8
+            _ = std.os.windows.kernel32.SetConsoleOutputCP(65001);
+            // set console title
+            _ = windows.system(std.fmt.comptimePrint("title {s}", .{title}));
+            // set console size
+            _ = windows.system(std.fmt.comptimePrint("mode con lines={d} cols={d}", .{height + 3, width + 20}));
+        }
+
+        /// hide console cursor
+        pub fn hide_cursor() void {
+            const cursor_info: windows.CONSOLE_CURSOR_INFO = .{
+                .dwSize = 1,
+                .bVisible = 0,
+            };
+            const handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE);
+            _ = windows.SetConsoleCursorInfo(handle, &cursor_info);
+        }
+
+        /// set the position of console cursor
+        pub fn cursor_jump(x: i16, y: i16) void {
+            const pos: windows.COORD = .{
+                .X = x,
+                .Y = y,
+            };
+            const handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE);
+            _ = windows.SetConsoleCursorPosition(handle, pos);
+        }
+
+        /// set color
+        pub fn set_color(color: Color) void {
+            const c: c_ushort = @intFromEnum(color) + 8;
+            const handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE);
+            _ = windows.SetConsoleTextAttribute(handle, c);
+        }
+    },
+    else => @compileError("unsupport platform"),
+};
 
 pub const Coordinate = @Vector(2, i16);
 
 pub const Color = enum(u16) {
-    GRAY = 8,
+    GRAY,
     BLUE,
     GREEN,
     SKY,
@@ -26,12 +72,9 @@ pub fn init(
     return struct {
         /// draw ui in console
         pub fn draw_ui() void {
-            // set console encoding to utf-8
-            _ = std.os.windows.kernel32.SetConsoleOutputCP(65001);
-            // set console title
-            _ = windows.system(std.fmt.comptimePrint("title {s}", .{title}));
-            // set console size
-            _ = windows.system(std.fmt.comptimePrint("mode con lines={d} cols={d}", .{height + 3, width + 20}));
+            if (builtin.target.os.tag == .windows) {
+                console.init(title, width, height);
+            }
 
             // draw ui
             const ui = comptime blk: {
@@ -58,30 +101,18 @@ pub fn init(
 
         /// hide console cursor
         pub fn hide_cursor() void {
-            const cursor_info: windows.CONSOLE_CURSOR_INFO = .{
-                .dwSize = 1,
-                .bVisible = 0,
-            };
-            const handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE);
-            _ = windows.SetConsoleCursorInfo(handle, &cursor_info);
+            console.hide_cursor();
         }
 
         /// set the position of console cursor
         pub fn cursor_jump(relative_coord: *const Coordinate) void {
             const real_coord = relative_coord.* + offset;
-            const pos: windows.COORD = .{
-                .X = real_coord[0],
-                .Y = real_coord[1],
-            };
-            const handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE);
-            _ = windows.SetConsoleCursorPosition(handle, pos);
+            console.cursor_jump(real_coord[0], real_coord[1]);
         }
 
         /// set color
         pub fn set_color(color: Color) void {
-            const c: c_ushort = @intFromEnum(color);
-            const handle = windows.GetStdHandle(windows.STD_OUTPUT_HANDLE);
-            _ = windows.SetConsoleTextAttribute(handle, c);
+            console.set_color(color);
         }
 
         pub fn draw_one() void {
@@ -90,10 +121,6 @@ pub fn init(
 
         pub fn clear_one() void {
             _ = std.c.printf(" ");
-        }
-
-        pub fn clear() void {
-            _ = windows.system("cls");
         }
     };
 }

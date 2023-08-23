@@ -1,6 +1,10 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const console = @import("console.zig");
-const conio = @cImport(@cInclude("conio.h"));
+const conio = switch (builtin.target.os.tag) {
+    .windows => @cImport(@cInclude("conio.h")),
+    else => @compileError("unsupport platform"),
+};
 
 const ESC = 27;
 const SPACE = 32;
@@ -76,7 +80,7 @@ const Shape = struct {
         return .{
             .i = i,
             .j = j,
-            .color = @enumFromInt(@as(u16, i) + 8),
+            .color = @enumFromInt(@as(u16, i)),
         };
     }
 
